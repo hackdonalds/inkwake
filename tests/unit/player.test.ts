@@ -484,7 +484,8 @@ describe('Combat', () => {
     c.input.state.boltPressed = true;
     c.step(0.5);
     expect(c.count('bolt:fire')).toBe(1);
-    expect(c.energy.value).toBe(2);
+    // no ink was spent (the safety trickle refills toward the floor meanwhile)
+    expect(c.energy.value).toBeCloseTo(2 + TUNING.energy.floorPerSec * 1.0, 5);
   });
 
   it('buffers a tap pressed slightly before the cooldown ends', () => {

@@ -1169,6 +1169,8 @@ export class Player implements PlayerAPI {
     const held = wantHeld && hasInk && !this.snuffedFlag;
     const mods = this.kit.mods;
     if (held) E.drain(C.drainPerSec * cost * mods.holdCostMul * dt);
+    else if (!wantHeld && this.alive && E.value < T.energy.floor)
+      E.add(Math.min(T.energy.floor - E.value, T.energy.floorPerSec * dt));
     const powered = held && E.value > 0;
     if (powered !== this.crystalHeldFlag) {
       this.crystalHeldFlag = powered;

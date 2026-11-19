@@ -51,6 +51,13 @@ export const TUNING = {
     max: 100,
     start: 100,
     regenPerSec: 0,
+    /**
+     * Safety trickle: with the crystal down, ink below `floor` refills at `floorPerSec` up to it.
+     * Every verb costs ink and kills are the main source, so an empty wizard far from a well could
+     * never fight back (a first-run death spiral).
+     */
+    floor: 20,
+    floorPerSec: 4,
     magnetRadius: 3.5,
     magnetSpeed: 9,
     pickupRadius: 0.55,
