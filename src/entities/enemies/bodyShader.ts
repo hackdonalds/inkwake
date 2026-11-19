@@ -493,7 +493,9 @@ void main(){
 
   if (uOutline > 0.5){
     if (m < 0.5 || reveal < 0.02 || plate) discard;
-    vec3 oc = inkK ? uRamp1 : uRamp0;
+    // ink kinds (Blot, Redactor) are dark bodies on dark inked ground: a paper rim keeps them
+    // readable (they used to vanish under/around the wizard while draining and hitting)
+    vec3 oc = inkK ? uRamp3 : uRamp0;
     if (vE.y > 0.5) oc = vE.y < 1.5 ? uGold : (vE.y < 2.5 ? uEliteTeal : uEliteRed);
     // margin man: the dash-trail window shows as a white chalk outline
     if (kindIs(kind, 3.0) && vE.z > 0.5 && vE.y < 0.5) oc = uRamp3;
