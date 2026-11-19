@@ -931,8 +931,11 @@ export class Player implements PlayerAPI {
       this.stepCrystal(dt, wantHold);
       this.stepKitHold(dt, this.crystalHeldFlag);
     } else {
-      this.stepKitHold(dt, wantHold);
-      this.stepCrystal(dt, this.kit.wantsPrintLight?.(wantHold) ?? false);
+      // within reach of an unprinted sketch, hold = print: the kit's own hold (Letterer balloon,
+      // Colorist bucket…) would spend the ink the print needs, so a print could never finish
+      const printing = this.kit.wantsPrintLight?.(wantHold) ?? false;
+      this.stepKitHold(dt, wantHold && !printing);
+      this.stepCrystal(dt, printing);
     }
     if (!this.kit.remote) this.kit.update(dt);
     this.splash.step(dt);
