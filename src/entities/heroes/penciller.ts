@@ -315,7 +315,7 @@ export class PencillerKit extends KitBase {
       return;
     }
     t.stun?.(pin);
-    this.pins.set(t.id, this.time + pin);
+    this.pins.set(t.id, Math.max(this.pins.get(t.id) ?? 0, this.time + pin));
     this.fx?.discs.spawn(t.position.x, t.position.y, t.position.z, 0.9, C.gold, 2, pin);
     H.sfx('bolt_hit', 0.6, 1.4, [t.position.x, t.position.y + 0.6, t.position.z]);
     if (bounce > 0) {
@@ -399,7 +399,7 @@ export class PencillerKit extends KitBase {
     inRadius(H, x, z, L.range, (t) => {
       if ((t as Ghost).kind === undefined) return;
       t.stun?.(L.freeze);
-      this.pins.set(t.id, this.time + L.freeze);
+      this.pins.set(t.id, Math.max(this.pins.get(t.id) ?? 0, this.time + L.freeze));
     });
     H.events.emit('fx:panelCut', { word: 'layout', focus: [x, H.position.y + 1, z], reason: 'ultimate' });
   }

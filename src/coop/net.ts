@@ -252,6 +252,7 @@ export class NetCoop implements CoopSession {
         this.push({ k: 'down', pid: m.slot, x: p.x, z: p.z });
       },
       onUp: (m) => this.push({ k: 'up', pid: m.slot }),
+      partnerLive: () => this.fadeT < 0 && this.hostLostT < 0,
     });
     if (this.authority) {
       this.router = new PickupRouter(ctx, host.pickups, [

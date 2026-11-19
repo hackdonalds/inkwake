@@ -270,10 +270,7 @@ export class Input implements InputAPI {
     const y = e.clientY - this.rect.top;
     if (e.pointerType === 'mouse') {
       this.state.device = 'keyboard';
-      if (e.button === 0) {
-        this.boltLatch = true;
-        this.onGesture?.('tap', { ms: 0, px: 0, x, y });
-      } else if (e.button === 2) this.mouseCrystal = true;
+      this.mouseButtons(e, x, y);
       return;
     }
     this.state.device = 'touch';
@@ -305,8 +302,28 @@ export class Input implements InputAPI {
     sl.cls.down(t, x, y);
   };
 
+  /**
+   * Mouse chords: a second button pressed/released while another is held arrives as a
+   * pointermove (Pointer Events spec), so derive both verbs from `e.buttons` edges.
+   */
+  private mouseB = 0;
+  private mouseButtons(e: PointerEvent, x: number, y: number): void {
+    const b = e.buttons;
+    if (b & 1 && !(this.mouseB & 1)) {
+      this.boltLatch = true;
+      this.onGesture?.('tap', { ms: 0, px: 0, x, y });
+    }
+    this.mouseCrystal = (b & 2) !== 0;
+    this.mouseB = b;
+  }
+
   private onMove = (e: PointerEvent): void => {
-    if (!this.enabled || e.pointerType === 'mouse') return;
+    if (e.pointerType === 'mouse') {
+      if (this.enabled && e.buttons !== this.mouseB)
+        this.mouseButtons(e, e.clientX - this.rect.left, e.clientY - this.rect.top);
+      return;
+    }
+    if (!this.enabled) return;
     const x = e.clientX - this.rect.left;
     const y = e.clientY - this.rect.top;
     if (e.pointerId === this.joyId) {
@@ -328,7 +345,8 @@ export class Input implements InputAPI {
 
   private onUp = (e: PointerEvent): void => {
     if (e.pointerType === 'mouse') {
-      if (e.button === 2) this.mouseCrystal = false;
+      this.mouseCrystal = (e.buttons & 2) !== 0;
+      this.mouseB = e.buttons;
       return;
     }
     const x = e.clientX - this.rect.left;
@@ -352,6 +370,7 @@ export class Input implements InputAPI {
   private onCancel = (e: PointerEvent): void => {
     if (e.pointerType === 'mouse') {
       this.mouseCrystal = false;
+      this.mouseB = 0;
       return;
     }
     if (e.pointerId === this.joyId) {
@@ -389,15 +408,18 @@ export class Input implements InputAPI {
           }
           break;
         }
-        this.boltLatch = true;
         haptics.pulse(g.tap);
         {
-          // double-tap on the action side = ultimate (the first tap still attacked)
+          // double-tap on the action side = ultimate (the first tap still attacked; the second
+          // one only fires the ultimate, so it doesn't also spend an attack)
           const now = performance.now();
           if (now - this.lastTapAt <= TUNING.gesture.doubleTapMs) {
             this.ultLatch = true;
             this.lastTapAt = -1e9;
-          } else this.lastTapAt = now;
+          } else {
+            this.boltLatch = true;
+            this.lastTapAt = now;
+          }
         }
         break;
       case 'swipe':
@@ -431,6 +453,7 @@ export class Input implements InputAPI {
       sl.id = -1;
     }
     this.mouseCrystal = false;
+    this.mouseB = 0;
     this.keys.clear();
     this.boltLatch = this.dashLatch = this.pauseLatch = this.snuffLatch = this.ultLatch = false;
     this.visuals?.clear();

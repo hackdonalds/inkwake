@@ -127,6 +127,8 @@ export class ColoristKit extends KitBase {
         this.host.events.on('enemy:died', (e) =>
           this.onGhostDied(e.id, e.position[0], e.position[2], e.kind),
         ),
+        // a new page wipes the reveal field: flats must not keep slowing/burning/healing unseen
+        this.host.events.on('page:start', () => this.clearFlats()),
       );
   }
 
@@ -147,6 +149,16 @@ export class ColoristKit extends KitBase {
       this.fx.root.add(m);
     }
     return this.fx;
+  }
+
+  private clearFlats(): void {
+    for (const f of this.flats) {
+      if (f.src >= 0) this.host.reveal.removeSource(f.src);
+      if (f.disc >= 0) this.fx?.discs.kill(f.disc);
+      f.src = f.disc = -1;
+      f.active = false;
+      f.until = -1;
+    }
   }
 
   /** Is (x, z) inside an active flat? Returns its colour index or -1. */
@@ -467,12 +479,12 @@ export class ColoristKit extends KitBase {
   private fourColor(world: boolean): void {
     const H = this.host;
     const mul = H.tuning.heroes.colorist.fourColor;
-    let any = false;
-    for (const f of this.flats) {
-      if (!f.active || f.until <= this.time) continue;
-      any = true;
-      this.addFlat(f.x, f.z, f.r * mul, f.col, world);
-    }
+    // snapshot first: addFlat may append to / recycle `flats`, which would re-spread new flats
+    const live = this.flats
+      .filter((f) => f.active && f.until > this.time)
+      .map((f) => ({ x: f.x, z: f.z, r: f.r, col: f.col }));
+    const any = live.length > 0;
+    for (const f of live) this.addFlat(f.x, f.z, f.r * mul, f.col, world);
     if (!any) this.addFlat(H.position.x, H.position.z, this.haloRadius() * 2 * mul, 2, world);
     H.events.emit('fx:panelCut', {
       word: 'fourColor',
@@ -480,10 +492,12 @@ export class ColoristKit extends KitBase {
       reason: 'ultimate',
     });
     if (!this.resolves(world)) return;
+    const done = new Set<number>(); // overlapping flats register each ghost once
     for (const f of this.flats) {
       if (!f.active) continue;
       inRadius(H, f.x, f.z, f.r, (t) => {
-        if ((t as Ghost).kind === undefined) return;
+        if ((t as Ghost).kind === undefined || done.has(t.id)) return;
+        done.add(t.id);
         t.stun?.(0.4); // stunned = hittable, even if the mask hasn't caught up
         const m = this.marks.get(t.id) ?? { t: [-1, -1, -1] as [number, number, number] };
         m.t[0] = m.t[1] = m.t[2] = this.time;

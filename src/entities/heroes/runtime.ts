@@ -26,7 +26,7 @@ export interface HeroHudAPI {
   setSplash(v: number): void;
   setHero(id: HeroId): void;
   /** Show a 2-option perk card; resolves with the pick (auto-picks after `autoS`). */
-  perk(hero: HeroId, options: readonly [string, string], autoS: number): Promise<string>;
+  perk(hero: HeroId, options: readonly [string, string], autoS: number): Promise<string | null>;
   setVisible(v: boolean): void;
   dispose(): void;
 }
@@ -123,7 +123,7 @@ export class HeroRuntime {
       if (!opts || !this.hud) continue;
       const pick = await this.hud.perk(hero, opts, FLAGS.autoplay ? 0.6 : 12);
       const kit = p.kit;
-      if (kit.id !== hero || kit.perks.has(pick)) continue;
+      if (pick === null || kit.id !== hero || kit.perks.has(pick)) continue;
       kit.applyPerk(pick);
       // co-op replicates it so the partner's puppet of this kit plays the perk too
       this.ctx.events.emit('hero:perk', { pid: p.slot, hero, perk: pick });

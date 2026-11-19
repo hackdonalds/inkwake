@@ -24,9 +24,11 @@ export function levelHooks(ctx: GameContext): NonNullable<LevelRuntime['coop']> 
       const n = Math.min(2, list.length);
       for (let k = 0; k < n; k++) {
         const q = list[k]!;
-        pts[k * 3] = q.position.x;
+        // a downed (unfinished) wizard can't crawl into the page exit: it must be reprinted first
+        const far = q.downed ? 1e6 : 0;
+        pts[k * 3] = q.position.x + far;
         pts[k * 3 + 1] = q.position.y;
-        pts[k * 3 + 2] = q.position.z;
+        pts[k * 3 + 2] = q.position.z + far;
       }
       if (n > 1) t.updateAll(pts, n);
       else if (ctx.player) t.update(ctx.player.position.x, ctx.player.position.y, ctx.player.position.z);

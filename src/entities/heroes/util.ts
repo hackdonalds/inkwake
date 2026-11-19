@@ -78,15 +78,25 @@ const scanRadius = (t: Damageable) => {
   if (dx * dx + dz * dz <= r * r) rfn!(t);
 };
 
-/** Call `fn` for every live target within `r` of (x, z). Not re-entrant. */
+/** Call `fn` for every live target within `r` of (x, z). Re-entrant (`fn` may call it again). */
 export function inRadius(host: HeroHost, x: number, z: number, r: number, fn: (t: Damageable) => void): void {
   if (!host.targets) return;
+  const px = rx;
+  const pz = rz;
+  const pr = rr;
+  const pfn = rfn;
   rx = x;
   rz = z;
   rr = r;
   rfn = fn;
-  host.targets.forEach(scanRadius);
-  rfn = null;
+  try {
+    host.targets.forEach(scanRadius);
+  } finally {
+    rx = px;
+    rz = pz;
+    rr = pr;
+    rfn = pfn;
+  }
 }
 
 /** Hit `t` for `dmg` from (fx, fz). Returns true if that blow killed it (hp known) or it died. */

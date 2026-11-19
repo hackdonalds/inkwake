@@ -43,7 +43,11 @@ export interface RulesEnv {
   /** Local wizard went down / got up (net replication). */
   onDown?(m: Member): void;
   onUp?(m: Member): void;
+  /** Online: false while the partner is dropping / the host is lost (its position is frozen). */
+  partnerLive?(): boolean;
 }
+
+const DASH_INK_COOLDOWN_S = 1.5;
 
 export class CoopRules {
   readonly down = new Map<PlayerSlot, DownState>();
@@ -56,6 +60,8 @@ export class CoopRules {
   private spreadWas = false;
   private offs: (() => void)[] = [];
   private pullCd = 0;
+  /** Per-dasher cooldown on dash-through ink (two wizards trading dashes farmed it endlessly). */
+  private dashInkCd = new Float32Array(2);
 
   constructor(
     private readonly ctx: GameContext,
@@ -67,6 +73,27 @@ export class CoopRules {
       ctx.events.on('player:respawn', () => {
         this.allDown = false;
         for (const m of this.members) if (m.body && this.down.has(m.slot)) this.getUp(m, false);
+      }),
+      // a new page restores every verb (Player's own page:start): reprint anyone still downed
+      ctx.events.on('page:start', () => {
+        this.allDown = false;
+        for (const m of this.members) {
+          const st = this.down.get(m.slot);
+          if (!m.body || !st) continue;
+          st.saved.bolt = st.saved.dash = st.saved.crystal = false;
+          this.getUp(m, true);
+        }
+      }),
+      // the Editor cut/restored a verb while a wizard is downed: that is what getUp restores to,
+      // and the downed lock stays on until then
+      ctx.events.on('boss:rewrite', (e) => {
+        if (e.verb !== 'bolt' && e.verb !== 'dash' && e.verb !== 'crystal') return;
+        for (const m of this.members) {
+          const st = this.down.get(m.slot);
+          if (!m.body || !st) continue;
+          st.saved[e.verb] = e.cut;
+          m.body.verbCut[e.verb] = true;
+        }
       }),
     );
   }
@@ -134,8 +161,15 @@ export class CoopRules {
   step(dt: number): void {
     const T = this.ctx.tuning.coop;
     const ms = this.members;
+    for (let i = 0; i < this.dashInkCd.length; i++) this.dashInkCd[i] = Math.max(0, this.dashInkCd[i]! - dt);
     if (ms.length < 2) {
       this.strain = 0;
+      // the partner left while this wizard was downed: nobody can reprint it, so it falls
+      // through to the normal death → checkpoint respawn instead of crawling forever
+      if (!this.allDown && ms.some((m) => this.down.has(m.slot))) {
+        this.allDown = true;
+        this.ctx.events.emit('player:died', {});
+      }
       return;
     }
     // ── revive own downed wizards
@@ -160,7 +194,11 @@ export class CoopRules {
       this.allDown = true;
       this.ctx.events.emit('player:died', {});
     }
-    // ── tether
+    // ── tether (not toward a disconnected partner's frozen spot)
+    if (this.env.partnerLive && !this.env.partnerLive()) {
+      this.strain = 0;
+      return;
+    }
     const a = ms[0]!.api.position;
     const b = ms[1]!.api.position;
     const d = Math.hypot(a.x - b.x, a.z - b.z);
@@ -246,6 +284,7 @@ export class CoopRules {
    */
   partnerDash(from: PlayerSlot, ax: number, az: number, bx: number, bz: number): void {
     const T = this.ctx.tuning.coop;
+    if ((this.dashInkCd[from] ?? 0) > 0) return;
     for (const m of this.members) {
       if (m.slot === from || !m.body || this.down.has(m.slot)) continue;
       const p = m.body.position;
@@ -258,6 +297,7 @@ export class CoopRules {
       const qz = az + dz * t - p.z;
       if (qx * qx + qz * qz <= T.dashThroughRadius ** 2) {
         m.addInk(T.dashThroughInk);
+        this.dashInkCd[from] = DASH_INK_COOLDOWN_S;
         this.ctx.events.emit('sfx:play', { id: 'ink_pickup', position: [p.x, p.y + 1, p.z] });
       }
     }

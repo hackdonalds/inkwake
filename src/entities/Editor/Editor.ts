@@ -715,6 +715,10 @@ export class Editor implements EditorSink {
     this.ctx.events.emit('fx:shake', { intensity: 0.6, duration: 1.4 });
   }
 
+  onPhaseBegin(_phase: BossPhase): void {
+    this.ctx.events.emit('boss:health', { value: this.fsm.health });
+  }
+
   onPhase(phase: BossPhase): void {
     this.ctx.events.emit('boss:phase', { phase });
     this.ctx.events.emit('boss:health', { value: this.fsm.health });

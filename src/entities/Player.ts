@@ -322,6 +322,8 @@ export class Player implements PlayerAPI {
   private smoke: ReturnType<typeof makeSmoke>;
   private flare: ReturnType<typeof makeFlare>;
   private readonly time: THREE.IUniform = { value: 0 };
+  private lastKillT = -1e9;
+  private killChain = 0;
   private readonly smokeTip = new THREE.Object3D();
 
   // sim state
@@ -433,7 +435,12 @@ export class Player implements PlayerAPI {
     this.offs.push(
       ev.on('enemy:died', (e) => {
         if (!this.alive) return;
-        this.splash.kill();
+        // kill chains (kills within combatPlus.chainWindow of each other) add perChain each
+        const now = this.time.value;
+        this.killChain =
+          now - this.lastKillT <= this.deps.tuning.combatPlus.chainWindow ? this.killChain + 1 : 1;
+        this.lastKillT = now;
+        this.splash.kill(this.killChain);
         this.kit.onKill?.(e.position[0], e.position[2], e.kind);
       }),
       ev.on('sketch:printed', () => this.splash.print()),
@@ -863,7 +870,8 @@ export class Player implements PlayerAPI {
       if (this.verbCut.bolt) this.fizzle();
       else if (this.dashT < 0) this.kit.onTap();
     }
-    if (live && input.ultimatePressed && !this.kit.remote && this.splash.consume()) this.kit.onUltimate();
+    if (live && !this.downed && input.ultimatePressed && !this.kit.remote && this.splash.consume())
+      this.kit.onUltimate();
     if (mods.revealBoostT > 0) mods.revealBoostT = Math.max(0, mods.revealBoostT - dt);
     if (live && input.dashPressed && !this.verbCut.dash) {
       this.dashBuf = T.dash.buffer;

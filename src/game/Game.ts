@@ -29,8 +29,8 @@ import { installPlayer, type Player } from '../entities/Player';
 import { type FxSystem, installFx } from '../fx';
 import { InkRenderer, installRender, RevealSystem } from '../render';
 import { Director, directorWorld } from '../systems/ai/director';
-import { type Combat, installCombat } from '../systems/combat';
 import { Checkpoints } from '../systems/checkpoints';
+import { type Combat, installCombat } from '../systems/combat';
 import { InkEnergy, type InkPickups, installInkPickups } from '../systems/ink-energy';
 import { Spawner } from '../systems/spawner';
 import { installStyle, type StyleSystem } from '../systems/style';
@@ -101,6 +101,10 @@ let bossModule: Promise<BossModule> | null = null;
 function loadBoss(): Promise<BossModule> {
   bossModule ??= Promise.all([import('../entities/Editor/Editor'), import('../entities/Editor/bot')]).then(
     ([e, b]) => ({ installEditor: e.install, attachEditorBot: b.attachEditorBot }),
+    (err) => {
+      bossModule = null; // a failed chunk load must not poison every later retry
+      throw err;
+    },
   );
   return bossModule;
 }
@@ -345,11 +349,15 @@ export class Game {
     this.player.object.visible = true;
     this.level.start(checkpoint);
     this.rig.snap(this.player.position);
+    // the Editor must be installed and armed before the wizard can walk into the one-shot
+    // `boss_intro` trigger (Continue at the boss checkpoint has no page-3 prefetch)
+    if (page === 'boss') {
+      this.player.setControllable(false);
+      this.setupBoss(def.anchors?.boss, await loadBoss());
+    } else if (page === 3) void loadBoss();
     this.player.setControllable(true);
     this.ctx.input.setEnabled(true);
     this.mode = 'playing';
-    if (page === 'boss') this.setupBoss(def.anchors?.boss, await loadBoss());
-    else if (page === 3) void loadBoss();
     if (page === 'boss') void this.ui.loadEndScreens();
     this.ctx.events.emit('state:change', { from: 'boot', to: page === 'boss' ? 'boss' : 'playing' });
     this.coop?.onPageStart(page);
@@ -567,7 +575,11 @@ export class Game {
       if (e.phase === 3) this.enemies.clear();
     });
     ev.on('boss:death', (e) => {
-      if (e.stage === 'black') setTimeout(() => void this.toCover(), 600);
+      if (e.stage !== 'black') return;
+      setTimeout(() => {
+        // quit to title (or a new run) during the beat: no cover over the title
+        if (this.page === 'boss' && this.mode === 'playing') void this.toCover();
+      }, 600);
     });
     ev.on('fx:panelCut', (e) => {
       const pri = e.reason.startsWith('boss') ? 3 : e.reason.includes('crit') ? 2 : 1;

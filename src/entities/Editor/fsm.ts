@@ -160,6 +160,8 @@ export interface EditorSink {
   onIntro(): void;
   /** Phase start (also fired at the *beginning* of a transition into that phase). */
   onPhase(phase: BossPhase): void;
+  /** The phase's weak points were (re)filled: health changed (respawn restarts a phase). */
+  onPhaseBegin?(phase: BossPhase): void;
   onAttack(a: Attack, stage: 'telegraph' | 'strike' | 'end'): void;
   onErase(ax: number, az: number, bx: number, bz: number, halfWidth: number): void;
   /** `player` = index into input.players (0 in single player). */
@@ -479,6 +481,9 @@ export class EditorFSM {
   jumpTo(phase: BossPhase): void {
     if (this.state === 'dormant' || this.state === 'dead' || this.state === 'dying') this.start();
     for (const w of this.wps) if (w.phase < phase) w.hp = 0;
+    // a respawn restart: the strike that was frozen mid-drag must not resume (erasing the
+    // fresh reveal, spawning smudges after the encounter clear)
+    for (const a of this.attacks) if (a.active) this.endAttack(a);
     this.beginTransition(phase);
   }
 
@@ -680,6 +685,7 @@ export class EditorFSM {
         : this.phase === 2
           ? b.phase2.attackInterval * 0.6
           : b.phase3.sweepInterval * 0.5;
+    this.sink.onPhaseBegin?.(this.phase);
   }
 
   private beginDeath(): void {
@@ -784,7 +790,7 @@ export class EditorFSM {
     s.serial++;
     s.x = this.playerX(s.target);
     s.z = this.playerZ(s.target);
-    this.attackTimer = Math.max(this.attackTimer, this.tuning.coop.stet.eraseS + 1);
+    // (no attackTimer bump: `blocked` already freezes scheduling for the whole STET)
     this.sink.onStet?.('start', s.target);
   }
 
@@ -834,6 +840,7 @@ export class EditorFSM {
   private endStet(notify: boolean): void {
     if (!this.stet.active) return;
     this.stet.active = false;
+    this.attackTimer = Math.max(this.attackTimer, 1); // a breath before the next attack
     if (notify) this.sink.onStet?.('saved', this.stet.target);
   }
 

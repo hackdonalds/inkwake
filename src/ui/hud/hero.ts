@@ -17,6 +17,8 @@ class HeroHud implements HeroHudAPI {
   private fill: SVGRectElement;
   private label: HTMLElement;
   private card: HTMLElement | null = null;
+  /** Settles the open card's promise with null (closed without a pick: page turn, quit, hide). */
+  private cancelCard: (() => void) | null = null;
   private value = -1;
 
   constructor(private ctx: GameContext) {
@@ -62,7 +64,7 @@ class HeroHud implements HeroHudAPI {
     this.label.textContent = this.ctx.t(full ? 'heroes.splashReady' : 'heroes.splash');
   }
 
-  perk(hero: HeroId, options: readonly [string, string], autoS: number): Promise<string> {
+  perk(hero: HeroId, options: readonly [string, string], autoS: number): Promise<string | null> {
     this.closeCard();
     const t = this.ctx.t;
     return new Promise((resolve) => {
@@ -71,6 +73,7 @@ class HeroHud implements HeroHudAPI {
         if (done) return;
         done = true;
         clearTimeout(timer);
+        this.cancelCard = null;
         this.ctx.events.emit('sfx:play', { id: 'ui_click' });
         this.closeCard();
         resolve(id);
@@ -102,10 +105,19 @@ class HeroHud implements HeroHudAPI {
       this.el.append(this.card);
       // never block the page: the first option is taken if the reader keeps playing
       const timer = setTimeout(() => pick(options[0]), Math.max(0, autoS) * 1000);
+      this.cancelCard = () => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        resolve(null);
+      };
     });
   }
 
   private closeCard(): void {
+    const cancel = this.cancelCard;
+    this.cancelCard = null;
+    cancel?.();
     this.card?.remove();
     this.card = null;
   }
