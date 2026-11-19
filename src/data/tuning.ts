@@ -732,13 +732,21 @@ export const TUNING = {
         range: 13,
         speed: 22,
         cost: 3,
-        pin: 2.5,
-        longLead: 4,
+        // short pins + re-pin immunity: tap-spam froze every ghost solid (they never got to attack)
+        pin: 1.2,
+        longLead: 2.5,
+        /** After a pin ends, the same ghost can't be pinned again for this long (s). */
+        repinImmunity: 2.5,
         wpDamage: 1,
         lineLife: 3,
         ricochet: 6,
-        /** A ruler that lands also cuts (solo Pencillers had no way to hurt a ghost by tapping). */
+        /**
+         * A ruler that lands on an already-visible ghost (inked, or still pinned) also cuts. The
+         * first ruler on an unseen ghost only pins and inks it: the Penciller's "reveal" step.
+         */
         damage: 1,
+        /** Seconds between throws. */
+        cooldown: 0.5,
         /** The pin inks a small splash around the ghost so it shows on every screen. */
         inkR: 1.4,
       },

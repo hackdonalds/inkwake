@@ -437,14 +437,34 @@ describe('Penciller', () => {
     step(k, w, 0.5);
     circleTrace(k, w, 0, 4, 1.6);
     expect(k.loops).toBeGreaterThanOrEqual(1);
-    const R = TUNING.heroes.penciller.ruler;
-    // the ruler cuts on landing, then the loop crushes the pinned ghost
-    expect(w.ghosts[0]!.hits).toEqual([R.damage, TUNING.heroes.penciller.crush.damage]);
+    // the first ruler on an unseen ghost only pins + inks it; the loop crushes the pinned ghost
+    expect(w.ghosts[0]!.hits).toEqual([TUNING.heroes.penciller.crush.damage]);
     expect(w.ghosts[1]!.hits).toEqual([]); // not pinned
     expect(w.ghosts[2]!.hits).toEqual([]);
     expect(w.reveal.sources.length).toBeGreaterThan(0); // solo assist spark
     expect(prints).toHaveLength(1);
     expect(w.actions.some((a) => a.action === 'hold' && a.data?.kind === 'loop')).toBe(true);
+  });
+
+  it('tap spam cannot stun-lock: first ruler pins + inks, follow-ups cut; re-pin waits out immunity', () => {
+    const R = TUNING.heroes.penciller.ruler;
+    const w = world(0, undefined, [new Ghost(1, 0, 4)]);
+    const k = new PencillerKit();
+    k.attach(w.host);
+    k.onTap();
+    step(k, w, 0.3);
+    expect(w.ghosts[0]!.stuns).toEqual([R.pin]);
+    expect(w.ghosts[0]!.hits).toEqual([]); // unseen ghost: the first ruler only reveals it
+    k.onTap(); // inside the cooldown: no throw
+    step(k, w, R.cooldown);
+    k.onTap(); // still pinned (visible): cuts, but no second freeze
+    step(k, w, 0.3);
+    expect(w.ghosts[0]!.hits).toEqual([R.damage]);
+    expect(w.ghosts[0]!.stuns).toHaveLength(1);
+    step(k, w, R.pin + R.repinImmunity);
+    k.onTap(); // immunity over: pins again
+    step(k, w, 0.3);
+    expect(w.ghosts[0]!.stuns).toHaveLength(2);
   });
 
   it('perks: Long Lead pins 4 s, Crosshatch +1 crush, eraser ignored, erase-step i-frames', () => {
@@ -457,10 +477,7 @@ describe('Penciller', () => {
     step(k, w, 0.5);
     expect(w.ghosts[0]!.stuns[0]).toBe(TUNING.heroes.penciller.ruler.longLead);
     circleTrace(k, w, 0, 4, 1.6);
-    expect(w.ghosts[0]!.hits).toEqual([
-      TUNING.heroes.penciller.ruler.damage,
-      TUNING.heroes.penciller.crush.damage + 1,
-    ]);
+    expect(w.ghosts[0]!.hits).toEqual([TUNING.heroes.penciller.crush.damage + 1]);
     expect(k.mods.ignore).toBe('eraser');
     expect(k.mods.dashIFrames).toBe(TUNING.heroes.penciller.eraseStep.iFrames);
   });

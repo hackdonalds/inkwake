@@ -38,6 +38,9 @@ export class PencillerKit extends KitBase {
   private rods: ReturnType<typeof rod>[] = [];
   /** Pinned ghost ids → sim time the pin ends. */
   readonly pins = new Map<number, number>();
+  /** Ghost id → sim time it may be pinned again (no stun-lock by tap spam). */
+  private repinAt = new Map<number, number>();
+  private tapReadyAt = 0;
   // trace
   private xs!: Float32Array;
   private zs!: Float32Array;
@@ -106,6 +109,7 @@ export class PencillerKit extends KitBase {
   override onTap(): void {
     const H = this.host;
     const P = H.tuning.heroes.penciller.ruler;
+    if (this.time < this.tapReadyAt) return;
     if (!H.spend(P.cost)) {
       H.sfx('ui_click', 0.5, 0.6);
       return;
@@ -113,6 +117,7 @@ export class PencillerKit extends KitBase {
     const px = H.position.x;
     const pz = H.position.z;
     const t = nearest(H, px, pz, P.range, 'ghost') ?? nearest(H, px, pz, P.range, 'revealed');
+    this.tapReadyAt = this.time + P.cooldown;
     const tx = t ? t.position.x : px + H.facing.x * P.range * 0.6;
     const tz = t ? t.position.z : pz + H.facing.z * P.range * 0.6;
     this.act('tap', {
@@ -314,13 +319,18 @@ export class PencillerKit extends KitBase {
       if (t.revealed) strike(t, P.wpDamage, H.position.x, H.position.z);
       return;
     }
-    t.stun?.(pin);
-    this.pins.set(t.id, Math.max(this.pins.get(t.id) ?? 0, this.time + pin));
-    this.fx?.discs.spawn(t.position.x, t.position.y, t.position.z, 0.9, C.gold, 2, pin);
+    // the ruler inks the ghost in (visible); it cuts only a ghost that was already visible, and
+    // only pins (freezes) one that hasn't just been pinned, so tap spam can't freeze everything
+    const seen = t.revealed;
+    if ((this.repinAt.get(t.id) ?? -1) <= this.time) {
+      t.stun?.(pin);
+      this.pins.set(t.id, Math.max(this.pins.get(t.id) ?? 0, this.time + pin));
+      this.repinAt.set(t.id, this.time + pin + P.repinImmunity);
+      this.fx?.discs.spawn(t.position.x, t.position.y, t.position.z, 0.9, C.gold, 2, pin);
+    }
     H.sfx('bolt_hit', 0.6, 1.4, [t.position.x, t.position.y + 0.6, t.position.z]);
-    // the pin inks the ghost in (visible, not just hittable) and the ruler's edge cuts it
-    H.reveal.addSource(t.position.x, t.position.z, P.inkR, pin);
-    strike(t, P.damage, H.position.x, H.position.z);
+    H.reveal.addSource(t.position.x, t.position.z, P.inkR, Math.max(pin, 1));
+    if (seen) strike(t, P.damage, H.position.x, H.position.z);
     if (bounce > 0) {
       const n = nearest(H, t.position.x, t.position.z, P.ricochet, 'ghost', t.id);
       if (n)
@@ -415,6 +425,8 @@ export class PencillerKit extends KitBase {
       if (this.sketchT <= 0) this.host.setSketched?.(false);
     }
     if (this.pins.size > 32) for (const [id, until] of this.pins) if (until < this.time) this.pins.delete(id);
+    if (this.repinAt.size > 32)
+      for (const [id, at] of this.repinAt) if (at < this.time) this.repinAt.delete(id);
   }
 
   override render(_alpha: number, frameDt: number): void {
