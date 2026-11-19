@@ -147,7 +147,7 @@ export class UI {
     captureInstallPrompt();
     if (opts.pwa !== false) {
       installHeadLinks();
-      void registerPWA({ t: this.t, toast: (m, o) => this.toast(m, o) });
+      void registerPWA({ t: this.t, toast: (m, o) => this.toast(m, o), idle: () => !this.hudShown });
     }
   }
 

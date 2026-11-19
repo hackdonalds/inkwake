@@ -10,6 +10,8 @@ export interface PwaNotify {
     msg: string,
     opts?: { action?: { label: string; run: () => void }; ms?: number; closable?: boolean },
   ): () => void;
+  /** True when no run is in progress (loading / title / end screens): safe to reload. */
+  idle?(): boolean;
 }
 
 interface BeforeInstallPromptEvent extends Event {
@@ -108,6 +110,12 @@ export async function registerPWA(ui: PwaNotify): Promise<void> {
     const update = registerSW({
       immediate: true,
       onNeedRefresh() {
+        // not mid-run: take the new printing now (players kept playing stale, already-fixed
+        // builds because the prompt was easy to miss and a waiting worker never activated)
+        if (ui.idle?.()) {
+          void update(true);
+          return;
+        }
         ui.toast(ui.t('pwa.update'), {
           action: { label: ui.t('pwa.reload'), run: () => void update(true) },
           closable: true,
