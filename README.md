@@ -5,7 +5,7 @@ shines, the page gets drawn. Paper ghosts hide outside the ink; reveal them, ink
 page. Three pages and a boss, **THE EDITOR**, in 5–8 minutes. Mobile-first, installable PWA, plays
 offline.
 
-**Play:** <https://rakentaja.github.io/game/> (GitHub Pages, deployed from `main`).
+**Play:** <https://rakentaja.github.io/inkwake/> (GitHub Pages, deployed from `main`).
 
 ## How to play
 
@@ -107,11 +107,11 @@ Credits: [CREDITS.md](CREDITS.md) (same data as the in-game Credits screen).
 
 ## Deploy
 
-`main` deploys to GitHub Pages via `.github/workflows/pages.yml` (built with `BASE_PATH=/game/`).
+`main` deploys to GitHub Pages via `.github/workflows/pages.yml` (built with `BASE_PATH=/inkwake/`).
 To reproduce the production build locally:
 
 ```bash
-BASE_PATH=/game/ bun run build && bun run preview   # → http://localhost:4173/game/
+BASE_PATH=/inkwake/ bun run build && bun run preview   # → http://localhost:4173/inkwake/
 ```
 
 CI (`.github/workflows/ci.yml`) runs typecheck, lint, unit tests, asset validation, build, the JS

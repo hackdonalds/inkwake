@@ -479,8 +479,12 @@ void main(){
     // the Penciller's own screen: ghosts outside the ink stay faint pencil silhouettes
     if (uSight < 0.5 || uOutline > 0.5 || death > 0.0 || kindIs(kind, 7.0)) discard;
     float rim0 = 1.0 - abs(dot(normalize(vN), normalize(cameraPosition - vWPos)));
-    if (rim0 < 0.7 || eh(gl_FragCoord.xy + floor(uTime * 8.0)) > 0.5) discard;
-    gl_FragColor = vec4(uRamp1, 0.0);
+    // readable from the top-down camera: a solid graphite rim plus a boiling hatch fill of the
+    // whole body (a rim alone was a few stray pixels: ghosts about to hit you were invisible)
+    float boil = eh(gl_FragCoord.xy + floor(uTime * 8.0));
+    float hatch = step(0.5, fract((gl_FragCoord.x + gl_FragCoord.y) * 0.25));
+    if (rim0 < 0.3 && (hatch < 0.5 || boil > 0.75)) discard;
+    gl_FragColor = vec4(rim0 < 0.3 ? uRamp1 : uRamp0, 0.0);
     return;
   }
   bool inkK = kindIs(kind, 2.0) || kindIs(kind, 4.0);

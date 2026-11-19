@@ -194,7 +194,7 @@ export class LocalCoop implements CoopSession {
   }
 
   sight(): boolean {
-    return this.p2.kit.id === 'penciller';
+    return this.p2.kit.id === 'penciller' || this.p2.kit.id === 'letterer';
   }
 
   frame(alpha: number, frameDt: number): void {

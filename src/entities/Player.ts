@@ -1581,7 +1581,7 @@ export interface LoadedCharacter {
 }
 
 /**
- * Load the wizard: `public/assets/wizard.glb` (resolved against Vite's BASE_URL so the /game/
+ * Load the wizard: `public/assets/wizard.glb` (resolved against Vite's BASE_URL so the /inkwake/
  * Pages deploy works) if it exists, else `fallback()`
  * (the harness passes the POC's embedded CC0 GLB).
  */

@@ -720,7 +720,20 @@ export const TUNING = {
       holdHz: 2,
     },
     penciller: {
-      ruler: { range: 13, speed: 22, cost: 3, pin: 2.5, longLead: 4, wpDamage: 1, lineLife: 3, ricochet: 6 },
+      ruler: {
+        range: 13,
+        speed: 22,
+        cost: 3,
+        pin: 2.5,
+        longLead: 4,
+        wpDamage: 1,
+        lineLife: 3,
+        ricochet: 6,
+        /** A ruler that lands also cuts (solo Pencillers had no way to hurt a ghost by tapping). */
+        damage: 1,
+        /** The pin inks a small splash around the ghost so it shows on every screen. */
+        inkR: 1.4,
+      },
       trace: { spacing: 0.45, maxPoints: 96, life: 4, blueline: 7, closeDist: 0.9, minArea: 1.5 },
       crush: { damage: 2, crosshatch: 1, perspective: 1, kirbyInk: 6 },
       eraseStep: { iFrames: 0.4 },

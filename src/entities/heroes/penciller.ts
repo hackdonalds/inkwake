@@ -318,6 +318,9 @@ export class PencillerKit extends KitBase {
     this.pins.set(t.id, Math.max(this.pins.get(t.id) ?? 0, this.time + pin));
     this.fx?.discs.spawn(t.position.x, t.position.y, t.position.z, 0.9, C.gold, 2, pin);
     H.sfx('bolt_hit', 0.6, 1.4, [t.position.x, t.position.y + 0.6, t.position.z]);
+    // the pin inks the ghost in (visible, not just hittable) and the ruler's edge cuts it
+    H.reveal.addSource(t.position.x, t.position.z, P.inkR, pin);
+    strike(t, P.damage, H.position.x, H.position.z);
     if (bounce > 0) {
       const n = nearest(H, t.position.x, t.position.z, P.ricochet, 'ghost', t.id);
       if (n)

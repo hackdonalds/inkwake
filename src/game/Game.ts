@@ -244,8 +244,12 @@ export class Game {
       crystalPos: () => this.player.crystalPos,
       inkContext: { shared: this.render.shared, reveal: ctx.reveal.uniforms },
       label: (k) => ctx.t(k),
-      // the Penciller sees unlit ghosts as faint pencil silhouettes (on his own screen only)
-      sight: () => this.player.kit.id === 'penciller' || (this.coop?.sight?.() ?? false),
+      // the lightless heroes (Penciller, Letterer) see unlit ghosts as pencil silhouettes on their
+      // own screen: otherwise ghosts that are about to hit them are simply invisible
+      sight: () =>
+        this.player.kit.id === 'penciller' ||
+        this.player.kit.id === 'letterer' ||
+        (this.coop?.sight?.() ?? false),
     });
     this.render.scene.add(this.enemyGfx.root);
     this.spawner = new Spawner(ctx.events, this.enemies);

@@ -437,7 +437,9 @@ describe('Penciller', () => {
     step(k, w, 0.5);
     circleTrace(k, w, 0, 4, 1.6);
     expect(k.loops).toBeGreaterThanOrEqual(1);
-    expect(w.ghosts[0]!.hits).toEqual([TUNING.heroes.penciller.crush.damage]);
+    const R = TUNING.heroes.penciller.ruler;
+    // the ruler cuts on landing, then the loop crushes the pinned ghost
+    expect(w.ghosts[0]!.hits).toEqual([R.damage, TUNING.heroes.penciller.crush.damage]);
     expect(w.ghosts[1]!.hits).toEqual([]); // not pinned
     expect(w.ghosts[2]!.hits).toEqual([]);
     expect(w.reveal.sources.length).toBeGreaterThan(0); // solo assist spark
@@ -455,7 +457,10 @@ describe('Penciller', () => {
     step(k, w, 0.5);
     expect(w.ghosts[0]!.stuns[0]).toBe(TUNING.heroes.penciller.ruler.longLead);
     circleTrace(k, w, 0, 4, 1.6);
-    expect(w.ghosts[0]!.hits[0]).toBe(TUNING.heroes.penciller.crush.damage + 1);
+    expect(w.ghosts[0]!.hits).toEqual([
+      TUNING.heroes.penciller.ruler.damage,
+      TUNING.heroes.penciller.crush.damage + 1,
+    ]);
     expect(k.mods.ignore).toBe('eraser');
     expect(k.mods.dashIFrames).toBe(TUNING.heroes.penciller.eraseStep.iFrames);
   });
