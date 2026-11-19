@@ -38,6 +38,7 @@
     "energyLow": "Ink is running low",
     "boss": "The Editor",
     "phase": "Phase {n}",
+    "outOfInk": "Out of ink! Let go of the light to refill a little, or stand in an ink well.",
     "printing": "Printing {n}%"
   },
   "tutorial": {

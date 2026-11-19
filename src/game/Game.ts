@@ -109,6 +109,27 @@ function loadBoss(): Promise<BossModule> {
   return bossModule;
 }
 
+/**
+ * The boss chunk is fetched mid-run (page 3 → boss turn). A flaky network gets a few retries; a
+ * chunk that is gone (a new deploy replaced the hashed file while this tab was on page 3) can
+ * never load again, so reload: the boss checkpoint is already saved and the title offers it.
+ * Without this the page turn waited forever on a rejected import (softlock).
+ */
+async function loadBossOrReload(): Promise<BossModule> {
+  for (let i = 0; ; i++) {
+    try {
+      return await loadBoss();
+    } catch (err) {
+      if (i >= 2) {
+        console.error('[inkwake] boss chunk failed to load; reloading', err);
+        location.reload();
+        return new Promise<never>(() => {});
+      }
+      await new Promise((r) => setTimeout(r, 800 * 2 ** i));
+    }
+  }
+}
+
 export class Game {
   readonly ctx: GameContext;
   readonly render: InkRenderer;
@@ -357,8 +378,8 @@ export class Game {
     // `boss_intro` trigger (Continue at the boss checkpoint has no page-3 prefetch)
     if (page === 'boss') {
       this.player.setControllable(false);
-      this.setupBoss(def.anchors?.boss, await loadBoss());
-    } else if (page === 3) void loadBoss();
+      this.setupBoss(def.anchors?.boss, await loadBossOrReload());
+    } else if (page === 3) loadBoss().catch(() => {}); // prefetch; the turn retries
     this.player.setControllable(true);
     this.ctx.input.setEnabled(true);
     this.mode = 'playing';

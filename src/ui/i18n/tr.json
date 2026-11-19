@@ -38,6 +38,7 @@
     "energyLow": "Mürekkep azalıyor",
     "boss": "Editör",
     "phase": "{n}. evre",
+    "outOfInk": "Mürekkep bitti! Biraz dolması için ışığı bırak ya da bir mürekkep kuyusunda dur.",
     "printing": "Basılıyor %{n}"
   },
   "tutorial": {

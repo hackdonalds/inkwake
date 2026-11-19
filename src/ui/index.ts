@@ -82,6 +82,8 @@ export class UI {
   private bossHits = 0;
   private bossExact = false;
   private hintTimer = new Map<Hint, number>();
+  private hudShown = false;
+  private inkToastAt = -1e9;
   onQuit: (() => void) | null;
 
   constructor(
@@ -218,11 +220,13 @@ export class UI {
   }
 
   showHud(): void {
+    this.hudShown = true;
     this.hud.show();
     this.captions.setEnabled(true);
   }
 
   hideHud(): void {
+    this.hudShown = false;
     this.hud.hide();
     this.captions.setEnabled(false);
     this.hud.tutorial.clear();
@@ -417,6 +421,13 @@ export class UI {
       this.bossExact = false;
     });
     this.on('ui:tutorial', (e) => this.hint(e.hint, e.show));
+    // ran dry: say how to get ink back (first runs got stuck holding an empty light at a sketch)
+    this.on('energy:changed', (e) => {
+      const now = performance.now();
+      if (e.value > 0 || !this.hudShown || now - this.inkToastAt < 45_000) return;
+      this.inkToastAt = now;
+      this.toast(this.t('hud.outOfInk'), { ms: 5000 });
+    });
     this.on('crystal:hold', (e) => {
       clearTimeout(this.hintTimer.get('crystal'));
       if (e.held)

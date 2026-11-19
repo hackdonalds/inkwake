@@ -52,12 +52,13 @@ export const TUNING = {
     start: 100,
     regenPerSec: 0,
     /**
-     * Safety trickle: with the crystal down, ink below `floor` refills at `floorPerSec` up to it.
+     * Safety trickle: with the crystal down, ink below `floor` refills at `floorPerSec` up to it
+     * (32 = one sketch print: ~0.5 s to grow the light to print radius + 2 s hold at 12/s).
      * Every verb costs ink and kills are the main source, so an empty wizard far from a well could
      * never fight back (a first-run death spiral).
      */
-    floor: 20,
-    floorPerSec: 4,
+    floor: 32,
+    floorPerSec: 5,
     magnetRadius: 3.5,
     magnetSpeed: 9,
     pickupRadius: 0.55,
