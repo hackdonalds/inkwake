@@ -1207,6 +1207,7 @@ export class NetCoop implements CoopSession {
         dt,
         this.host.player,
         this.authority || this.solo ? (n) => this.host.energy.add(n) : (n) => n,
+        this.host.energy.max,
       );
   }
 

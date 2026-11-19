@@ -31,6 +31,8 @@ export class Checkpoints {
   current: string;
   private readonly offs: (() => void)[] = [];
   private respawning = false;
+  private disposed = false;
+  private timer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly def: LevelDef,
@@ -56,14 +58,18 @@ export class Checkpoints {
     return Checkpoints.loadSave().lastCheckpoint;
   }
 
-  reach(id: string): void {
-    if (!this.def.checkpoints.some((c) => c.id === id)) return;
+  /** `force`: always emit `checkpoint:reached` (a page (re)started here: refill pages). */
+  reach(id: string, force = false): void {
+    const idx = this.def.checkpoints.findIndex((c) => c.id === id);
+    if (idx < 0 || this.disposed) return;
+    // never regress: walking back through an earlier checkpoint's rect keeps the later one
+    if (idx < this.def.checkpoints.findIndex((c) => c.id === this.current)) return;
     const first = this.current !== id;
     this.current = id;
     const s = Checkpoints.loadSave();
     s.lastCheckpoint = { page: this.def.page, id };
     save(SAVE_KEY, s);
-    if (first || id === this.def.checkpoints[0]?.id) this.events.emit('checkpoint:reached', { id });
+    if (first || force || id === this.def.checkpoints[0]?.id) this.events.emit('checkpoint:reached', { id });
   }
 
   position(id = this.current): [number, number, number] {
@@ -72,13 +78,17 @@ export class Checkpoints {
   }
 
   private scheduleRespawn(): void {
-    if (this.respawning) return;
+    if (this.respawning || this.disposed) return;
     this.respawning = true;
-    const st = this.hooks.setTimeout ?? ((fn: () => void, ms: number) => setTimeout(fn, ms));
-    st(() => void this.respawn(), TUNING.checkpoint.respawnDelay * 1000);
+    const ms = TUNING.checkpoint.respawnDelay * 1000;
+    if (this.hooks.setTimeout) this.hooks.setTimeout(() => void this.respawn(), ms);
+    else this.timer = setTimeout(() => void this.respawn(), ms);
   }
 
   async respawn(): Promise<void> {
+    this.timer = null;
+    // the page was torn down while the death timer ran: never teleport onto the next level
+    if (this.disposed) return;
     const id = this.current;
     const swap = () => {
       const [x0, y0, z] = this.position(id);
@@ -112,6 +122,9 @@ export class Checkpoints {
   }
 
   dispose(): void {
+    this.disposed = true;
+    if (this.timer !== null) clearTimeout(this.timer);
+    this.timer = null;
     for (const off of this.offs) off();
     this.offs.length = 0;
   }

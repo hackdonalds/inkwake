@@ -147,11 +147,10 @@ export function installLevel(
     coop: null,
     start(checkpointId) {
       const id = checkpointId ?? def.checkpoints[0]?.id;
-      if (id) checkpoints.current = id;
       const [x, , z] = checkpoints.position(id);
       ctx.player?.teleport(x, built.collision.groundHeight(x, z), z, def.playerStart.rotY);
       ctx.events.emit('page:start', { page: def.page });
-      if (id) checkpoints.reach(id);
+      if (id) checkpoints.reach(id, true);
     },
     update(dt) {
       const p = ctx.player;

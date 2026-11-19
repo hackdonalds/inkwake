@@ -144,12 +144,14 @@ export const MarginManBrain: Brain = {
           const off = w.playerRadius + e.radius + 0.35;
           const tx = w.playerX + dx * off;
           const tz = w.playerZ + dz * off;
-          if (w.walkable(tx, tz)) {
+          const landed = w.walkable(tx, tz);
+          if (landed) {
             e.position.x = tx;
             e.position.z = tz;
           }
           e.yaw = Math.atan2(-dx, -dz);
-          w.damagePlayer(e, w.tuning.enemies.marginMan.damage, 0.45);
+          // a refused blink (wall / void beside the wizard) whiffs: no hit from across the gap
+          if (landed) w.damagePlayer(e, w.tuning.enemies.marginMan.damage, 0.45);
           w.sfx('ui_click', e.position.x, e.position.y + 1.4, e.position.z, 1);
           e.phase = 1;
           e.stateT = 0;

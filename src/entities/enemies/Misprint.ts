@@ -86,6 +86,14 @@ export const MisprintBrain: Brain = {
     return e.worn || e.align >= 1;
   },
 
+  // a hit's recoil must not pause the alignment clock (it would stretch the hittable window)
+  recoilTick(e, w, dt) {
+    const a = w.tuning.enemies.misprintAi;
+    const period = a.period * w.tempo;
+    e.cycleT = misprintStep(e.cycleT, dt, period, a.window, a.beatSnap && w.beatNow, w.beatLen);
+    e.align = e.worn ? 1 : misprintAlign(e.cycleT, period, a.window, a.converge * w.tempo);
+  },
+
   update(e: Enemy, w: BrainWorld, dt: number, desired: V2) {
     const t = w.tuning.enemies;
     const a = t.misprintAi;

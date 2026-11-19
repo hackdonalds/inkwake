@@ -218,7 +218,12 @@ export class InkPickups {
     this.mesh.count = 0;
   }
 
-  step(dt: number, player: PlayerAPI | null, addEnergy: (n: number) => number): void {
+  step(
+    dt: number,
+    player: PlayerAPI | null,
+    addEnergy: (n: number) => number,
+    maxEnergy = this.deps.tuning.energy.max,
+  ): void {
     const E = this.deps.tuning.energy;
     const gh = this.deps.groundHeight;
     this.comboT -= dt;
@@ -226,7 +231,7 @@ export class InkPickups {
     const px = player?.position.x ?? 0;
     const py = (player?.position.y ?? 0) + 1.1;
     const pz = player?.position.z ?? 0;
-    const full = player ? player.energy >= E.max - 0.01 : true;
+    const full = player ? player.energy >= maxEnergy - 0.01 : true;
     for (const p of this.pool) {
       if (p.state === P.Free) continue;
       p.t += dt;

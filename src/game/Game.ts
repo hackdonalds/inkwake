@@ -30,6 +30,7 @@ import { type FxSystem, installFx } from '../fx';
 import { InkRenderer, installRender, RevealSystem } from '../render';
 import { Director, directorWorld } from '../systems/ai/director';
 import { type Combat, installCombat } from '../systems/combat';
+import { Checkpoints } from '../systems/checkpoints';
 import { InkEnergy, type InkPickups, installInkPickups } from '../systems/ink-energy';
 import { Spawner } from '../systems/spawner';
 import { installStyle, type StyleSystem } from '../systems/style';
@@ -294,11 +295,15 @@ export class Game {
     this.teardownPage();
     this.page = null;
     this.meta.detachPage();
+    // the level's Checkpoints write the save themselves (page turns run while mode is 'turning')
+    this.saveData = Checkpoints.loadSave();
     // a live, empty first page behind the title
     this.level = installLevel(this.ctx, 1, { assets: (id) => this.prop(id) });
     this.collision.target = this.level.built.collision;
     this.ctx.collision = this.collision;
     this.level.start();
+    // the title backdrop "reached" p1's start checkpoint: don't let it clobber the real save
+    save(SAVE_KEY, this.saveData);
     this.player.object.visible = true;
     this.player.setControllable(false);
     this.ctx.input.setEnabled(false);
@@ -317,10 +322,13 @@ export class Game {
   private async newRun(page: PageId, checkpoint?: string, dailyDate?: string): Promise<void> {
     void this.ctx.audio.unlock().catch(() => {});
     Object.assign(this.ctx.stats, freshStats());
+    this.enemies.seenKinds.clear(); // first-reveal panel cuts replay each run
     this.style?.reset();
     this.meta.startRun(dailyDate ? 'daily' : 'main', dailyDate);
     await this.meta.ready();
     await this.heroes.prepare();
+    // a death timer from the previous run (quit mid-death) must not carry into this one
+    if (this.player.pages <= 0) this.player.revive();
     this.energy.add(this.energy.max);
     await this.startPage(page, checkpoint);
   }
@@ -392,6 +400,8 @@ export class Game {
     this.editor = null;
     this.bossStartArmed = false;
     this.enemies?.clear();
+    this.combat?.clear();
+    this.pickups?.clear();
     this.spawner?.load(null);
     this.level?.dispose();
     this.level = null;
@@ -502,11 +512,6 @@ export class Game {
         this.editor?.start();
       }
     });
-    // A spawn group's last wave cleared → `<trigger>_cleared` (e.g. Level 3's boss door
-    // `requires: 'p3_arena_cleared'`). Without this bridge the door could never print.
-    ev.on('wave:cleared', (e) => {
-      if (e.last) ev.emit('trigger:fired', { id: `${e.trigger}_cleared` });
-    });
     ev.on('tutorial:hint', (e) => ev.emit('ui:tutorial', e));
     ev.on('settings:changed', (e) => {
       if (e.key === 'lang' || e.key === '*') this.enemyGfx?.refreshLabels();
@@ -534,7 +539,7 @@ export class Game {
     });
     ev.on('page:complete', () => void this.nextPageTurn());
     ev.on('checkpoint:reached', ({ id }) => {
-      if (this.page === null || this.mode !== 'playing') return;
+      if (this.page === null || (this.mode !== 'playing' && this.mode !== 'turning')) return;
       this.saveData.lastCheckpoint = { page: this.page, id };
       save(SAVE_KEY, this.saveData);
     });
@@ -542,6 +547,7 @@ export class Game {
       this.coop?.onRespawn?.();
       // fresh encounters after a reprint: no ghosts camping the checkpoint, fights replay from their triggers
       this.enemies.clear();
+      this.combat.clear();
       if (this.level && this.page !== 'boss' && this.coop?.authority !== false)
         this.spawner.load(this.level.def);
     });
@@ -606,7 +612,7 @@ export class Game {
     coop?.stepCombat(dt);
     this.style.step(dt);
     if (coop) coop.stepPickups(dt);
-    else this.pickups.step(dt, this.player, (n) => this.energy.add(n));
+    else this.pickups.step(dt, this.player, (n) => this.energy.add(n), this.energy.max);
     this.spawner.step(dt);
     coop?.preWorld(dt);
     this.enemies.step(dt);

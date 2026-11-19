@@ -67,6 +67,8 @@ export interface Brain {
   update(e: Enemy, w: BrainWorld, dt: number, desired: V2): void;
   /** Optional per-step hook while Idle (cranes keep flying). */
   idle?(e: Enemy, w: BrainWorld, dt: number): void;
+  /** Keep internal clocks running while the brain is suspended (Recoil). */
+  recoilTick?(e: Enemy, w: BrainWorld, dt: number): void;
   /** Gimmick gate: may bolts hit it right now? Default: always. */
   vulnerable?(e: Enemy, w: BrainWorld): boolean;
   /** An attack in flight was interrupted (hit recoil, stun, respawn calm). */

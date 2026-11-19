@@ -621,6 +621,7 @@ export class EnemySystem implements EnemyOwner, CraneOwner, BrainWorld {
           if (dx * dx + dz * dz <= ai.aggroRange * ai.aggroRange) brain.stalk(e, this);
         }
       } else if (e.state === AiState.Recoil) {
+        brain.recoilTick?.(e, this, dt);
         e.recoil = Math.max(0, 1 - e.stateT / Math.max(1e-3, e.stateDur));
         const k = Math.exp(-ai.recoilDrag * dt);
         e.velocity.x *= k;
@@ -748,6 +749,16 @@ export class EnemySystem implements EnemyOwner, CraneOwner, BrainWorld {
         c.vz *= Math.exp(-3 * dt);
         if (c.dieT >= 1) {
           c.active = false;
+          // leave the old swarm's flock: a recycled slot must not be steered / killed by two swarms
+          const sw = c.swarm;
+          if (sw) {
+            const k = sw.flock.indexOf(c);
+            if (k >= 0) {
+              sw.flock.splice(k, 1);
+              if (sw.seam === k) sw.seam = -1;
+              else if (sw.seam > k) sw.seam--;
+            }
+          }
           c.swarm = null;
         }
         continue;
@@ -932,7 +943,8 @@ export class EnemySystem implements EnemyOwner, CraneOwner, BrainWorld {
 
   touchPlayer(e: Enemy): boolean {
     const p = this.curP;
-    if (!p || p.downed || e.contactCd > 0 || !e.alive) return false;
+    // lured: playerX/Z is the decoy's spot, so contact there must not hurt the real wizard
+    if (!p || p.downed || e.contactCd > 0 || !e.alive || this.lured) return false;
     const dx = this.playerX - e.position.x;
     const dz = this.playerZ - e.position.z;
     const r = e.radius + this.playerRadius - (p.contactShrink ?? 0);
@@ -947,7 +959,7 @@ export class EnemySystem implements EnemyOwner, CraneOwner, BrainWorld {
 
   damagePlayer(e: Enemy, amount: number, shake: number): void {
     const p = this.curP;
-    if (!p || p.invulnerable || p.downed || !e.alive) return;
+    if (!p || p.invulnerable || p.downed || !e.alive || this.lured) return;
     p.damage(amount, e.kind);
     if (shake > 0) this.deps.events.emit('fx:shake', { intensity: shake, duration: 0.2 });
   }
